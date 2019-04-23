@@ -1,8 +1,8 @@
 [package]
 description = State of processes and their local connections for osquery hosts.
 tags = osquery, state, host, connection
-version = 0.2.0
+version = 0.3.0
 depends =
-  zeek-osquery-framework ~0.2.0
-  zeek-osquery-state ~0.2.0
+  zeek-osquery-framework ~0.3.0
+  zeek-osquery-state ~0.3.0
 script_dir = scripts
