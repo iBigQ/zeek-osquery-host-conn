@@ -119,8 +119,8 @@ function remove_socket_entry(host_id: string, socket_info: osquery::SocketInfo) 
 	local proc_conns_new: vector of osquery::ProcessConnectionInfo = vector();
 	for (idx in proc_conns[host_id][pid, fd]) {
 		proc_conn_info = proc_conns[host_id][pid, fd][idx];
-		# Delete element (skip first match on copy)
-		if (|proc_conns_new| == idx && osquery::equalSocketInfos(proc_conn_info$socket_info, socket_info)) {
+		# Delete element (skip on copy)
+		if (osquery::equalSocketInfos(proc_conn_info$socket_info, socket_info)) {
 			event osquery::process_connection_removed(host_id, proc_conn_info$process_info, socket_info);
 			next;
 		}
