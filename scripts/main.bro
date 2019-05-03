@@ -1,8 +1,7 @@
 #! Provide current process connection information about hosts.
 
 @load zeek-osquery-framework
-@load zeek-osquery-state/processes
-@load zeek-osquery-state/sockets
+@load zeek-osquery-state
 
 module osquery::state::process_connections;
 
