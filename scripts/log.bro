@@ -28,6 +28,7 @@ export {
 	};
 }
 
+@if ( !Cluster::is_enabled() || Cluster::local_node_type() == Cluster::MANAGER )
 event osquery::process_connection_added(host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo) {
 	local info: Info = [
 		$host = host_id,
@@ -75,7 +76,7 @@ event osquery::process_connection_removed(host_id: string, process_info: osquery
 
 	Log::write(LOG, info);
 }
-
+@endif
 
 event bro_init() {
 	Log::create_stream(LOG, [$columns=Info, $path="osq-process_connections"]);
