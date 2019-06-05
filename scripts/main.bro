@@ -1,8 +1,5 @@
 #! Provide current process connection information about hosts.
 
-@load zeek-osquery-framework
-@load zeek-osquery-state
-
 module osquery::state::process_connections;
 
 event osquery::process_state_added(host_id: string, process_info: osquery::ProcessInfo) {
