@@ -10,6 +10,7 @@ export {
 		added: bool &log;
 		pid: int &log;
 
+		name: string &log &optional;
 		binary_path: string &log &optional;
 		cmdline: string &log &optional;
 		uid: int &log &optional;
@@ -37,6 +38,7 @@ event osquery::process_connection_added(host_id: string, process_info: osquery::
 		$fd = socket_info$fd,
 		$state = socket_info$state
 	];
+	if (process_info?$name) { info$name = process_info$name; }
 	if (process_info?$path) { info$binary_path = process_info$path; }
 	if (process_info?$cmdline) { info$cmdline = process_info$cmdline; }
 	if (process_info?$uid) { info$uid = process_info$uid; }
@@ -61,6 +63,7 @@ event osquery::process_connection_removed(host_id: string, process_info: osquery
 		$fd = socket_info$fd,
 		$state = socket_info$state
 	];
+	if (process_info?$name) { info$name = process_info$name; }
 	if (process_info?$path) { info$binary_path = process_info$path; }
 	if (process_info?$cmdline) { info$cmdline = process_info$cmdline; }
 	if (process_info?$uid) { info$uid = process_info$uid; }
