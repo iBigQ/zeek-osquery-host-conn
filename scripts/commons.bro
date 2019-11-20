@@ -6,17 +6,17 @@ export {
 	## Event when added to the state of process connections
 	##
 	## <params missing>
-	global process_connection_added: event(host_id: string, process_info: ProcessInfo, socket_info: SocketInfo);
+	global process_connection_added: event(t: time, host_id: string, process_info: ProcessInfo, socket_info: SocketInfo);
 	
 	## Event when removing a host from the state of process connections
 	##
 	## <params missing>
-	global process_connection_host_removed: event(host_id: string);
+	global process_connection_host_removed: event(t: time, now: time, host_id: string);
 	
 	## Event when removing from the state of process connections
 	##
 	## <params missing>
-	global process_connection_removed: event(host_id: string, process_info: ProcessInfo, socket_info: SocketInfo);
+	global process_connection_removed: event(t: time, now: time, host_id: string, process_info: ProcessInfo, socket_info: SocketInfo);
 }
 
 #@if ( Cluster::local_node_type() == Cluster::MANAGER )
@@ -35,19 +35,19 @@ export {
 	global proc_conns: table[string] of table[int, int] of vector of osquery::ProcessConnectionInfo;
 
 	# Add an entry to the process connection state
-	global add_entry: function(host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo);
+	global add_entry: function(t: time, host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo);
 
 	# Remove an entry from the process connection state
-	global remove_entry: function(host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo);
+	global remove_entry: function(t: time, now: time, host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo);
 
 	# Remove all entries for host from the process connection state
-	global remove_host: function(host_id: string);
+	global remove_host: function(t: time, now: time, host_id: string);
 
 	# Current FD set for each PID by HostID
 	global proc_fds: table[string] of table[int] of set[int];
 }
 
-function add_entry(host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo) {
+function add_entry(t: time, host_id: string, process_info: osquery::ProcessInfo, socket_info: osquery::SocketInfo) {
 	local proc_conn_info: osquery::ProcessConnectionInfo = [$process_info=process_info, $socket_info=socket_info];
 	local pid = process_info$pid;
 	local fd = socket_info$fd;
@@ -72,12 +72,12 @@ function add_entry(host_id: string, process_info: osquery::ProcessInfo, socket_i
 
 	# Set fresh
 	if (!Cluster::is_enabled() || Cluster::local_node_type() == Cluster::MANAGER) {
-		event osquery::process_connection_added(host_id, process_info, socket_info);
-		Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_added, host_id, process_info, socket_info));
+		event osquery::process_connection_added(t, host_id, process_info, socket_info);
+		Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_added, t, host_id, process_info, socket_info));
 	}
 }
 
-function remove_process_entry(host_id: string, process_info: osquery::ProcessInfo) {
+function remove_process_entry(t: time, now: time, host_id: string, process_info: osquery::ProcessInfo) {
 	local pid = process_info$pid;
 	
 	# Check if process connection exists
@@ -96,8 +96,8 @@ function remove_process_entry(host_id: string, process_info: osquery::ProcessInf
 			# Delete element (skip on copy)
 			if (osquery::equalProcessInfos(proc_conn_info$process_info, process_info)) {
 				if (!Cluster::is_enabled() || Cluster::local_node_type() == Cluster::MANAGER) {
-					event osquery::process_connection_removed(host_id, process_info, proc_conn_info$socket_info);
-					Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_removed, host_id, process_info, proc_conn_info$socket_info));
+					event osquery::process_connection_removed(t, now, host_id, process_info, proc_conn_info$socket_info);
+					Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_removed, t, now, host_id, process_info, proc_conn_info$socket_info));
 				}
 				next;
 			}
@@ -120,7 +120,7 @@ function remove_process_entry(host_id: string, process_info: osquery::ProcessInf
 	}
 }
 
-function remove_socket_entry(host_id: string, socket_info: osquery::SocketInfo) {
+function remove_socket_entry(t: time, now: time, host_id: string, socket_info: osquery::SocketInfo) {
 	local pid = socket_info$pid;
 	local fd = socket_info$fd;
 	
@@ -137,8 +137,8 @@ function remove_socket_entry(host_id: string, socket_info: osquery::SocketInfo) 
 		# Delete element (skip on copy)
 		if (osquery::equalSocketInfos(proc_conn_info$socket_info, socket_info)) {
 			if (!Cluster::is_enabled() || Cluster::local_node_type() == Cluster::MANAGER) {
-				event osquery::process_connection_removed(host_id, proc_conn_info$process_info, socket_info);
-				Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_removed, host_id, proc_conn_info$process_info, socket_info));
+				event osquery::process_connection_removed(t, now, host_id, proc_conn_info$process_info, socket_info);
+				Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_removed, t, now, host_id, proc_conn_info$process_info, socket_info));
 			}
 			next;
 		}
@@ -155,14 +155,14 @@ function remove_socket_entry(host_id: string, socket_info: osquery::SocketInfo) 
 	}
 }
 
-function remove_host(host_id: string) {
+function remove_host(t: time, now: time, host_id: string) {
 	if (host_id !in proc_conns) { return; }
 
 	if (!Cluster::is_enabled() || Cluster::local_node_type() == Cluster::MANAGER) {
 		for ([pid, fd] in proc_conns[host_id]) {
 			for (idx in proc_conns[host_id][pid, fd]) {
-				event osquery::process_connection_removed(host_id, proc_conns[host_id][pid, fd][idx]$process_info, proc_conns[host_id][pid, fd][idx]$socket_info);
-				Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_removed, host_id, proc_conns[host_id][pid, fd][idx]$process_info, proc_conns[host_id][pid, fd][idx]$socket_info));
+				event osquery::process_connection_removed(t, now, host_id, proc_conns[host_id][pid, fd][idx]$process_info, proc_conns[host_id][pid, fd][idx]$socket_info);
+				Broker::publish(Cluster::worker_topic, Broker::make_event(osquery::process_connection_removed, t, now, host_id, proc_conns[host_id][pid, fd][idx]$process_info, proc_conns[host_id][pid, fd][idx]$socket_info));
 			}
 		}
 	}
